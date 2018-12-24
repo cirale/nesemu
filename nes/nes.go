@@ -9,8 +9,8 @@ type NES struct {
 func Start(rom []byte) *NES {
     var nes NES
     nes.ROM = ParseROM(rom)
-    nes.CPU = NewCPU()
     nes.RAM = NewRAM()
+    nes.CPU = NewCPU(nes.RAM, nes.ROM)
 
     return &nes
 }

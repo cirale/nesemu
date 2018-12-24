@@ -18,7 +18,8 @@ func main(){
         }
         
         n := nes.Start(bytes) 
-        fmt.Printf("%d",n.CPU.Register.P)
+        fmt.Printf("%x",n.CPU.Bus.ReadWord(0xfffc))
+        
         
     }
 }
