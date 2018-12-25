@@ -49,8 +49,8 @@ func (bus Bus) ReadByte(addr uint16) byte{
 }
  
 func (bus Bus) ReadWord(addr uint16) uint16 {
-    var Lower uint16 = uint16(bus.RAM.Read(addr))
-    var Upper uint16 = uint16(bus.RAM.Read(addr+1))
+    var Lower uint16 = uint16(bus.ReadByte(addr))
+    var Upper uint16 = uint16(bus.ReadByte(addr+1))
     return (Upper << 8) | Lower 
 }
 

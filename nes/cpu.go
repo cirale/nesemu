@@ -73,85 +73,88 @@ func (cpu CPU) pop() byte {
     return cpu.Bus.ReadByte(0x0100 | (uint16(cpu.Register.S & 0xff)))
 }
 
-// ----------------------------------------
-// InstructionDecoder
-// ----------------------------------------
-
-type AddressingMode int
-const (
-    Accumulator AddressingMode = iota
-    Immediate
-    Absolute
-    ZeroPage
-    IndexedZeroPageX
-    IndexedZeroPageY
-    IndexedAbsoluteX
-    IndexedAbsoluteY
-    Implied
-    Relative
-    IndeirectX
-    IndeirectY
-    AbsoluteIndirect
-)
-
-type Instruction int
-const (
-    // Calculation
-    ADC Instruction = iota; SBC
-    // Logical operation
-    AND; ORA; EOR
-    // Shift
-    ASL; LSR; ROL; ROR
-    // Branch
-    BCC; BCS; BEQ; BNE; BVC; BVS; BPL; BMI
-    // Test
-    BIT
-    // Jump
-    JMP; JSR; RTS
-    // Interrupt
-    BRK; RTI
-    // Compare
-    CMP; CPX; CPY
-    // Increment,Decrement
-    INC; DEC; INX; DEX; INY; DEY
-    // Flag
-    CLC; SEC; CLI; SEI; CKD; SED; CLV
-    // Load
-    LDA; LDX; LDY
-    // Store
-    STA; STX; STY
-    // Register transfer
-    TAX; TXA; TAY; TYA; TSX; TXS;
-    // Stack
-    PHA; PLA; PHP; PLP
-    // No Operation
-    NOP
-)
-
-
-type InstructionSet struct{
-    Inst Instruction
-    Mode AddressingMode
+func (cpu CPU) fetch() byte {
+    res := cpu.Bus.ReadByte(cpu.Register.PC)
+    cpu.Register.PC++
+    return res
 }
 
-func (cpu CPU)Decode(opcode byte) InstructionSet{
-    var inst InstructionSet
-    if opcode == 0x00 {
-        inst.Inst = BRK
-        inst.Mode = Implied
-    }else if opcode == 0x01 {
-        inst.Inst = ORA
-        inst.Mode = IndeirectX
-    }else if opcode == 0x05 {
-        inst.Inst = ORA
-        inst.Mode = ZeroPage
-    }else if opcode == 0x06 {
-        inst.Inst = ASL
-        inst.Mode = ZeroPage
-    }else if opcode == 0x08 {
-        inst.Inst = PHP
-        inst.Mode = Implied
+func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
+    var address uint16
+    
+    switch mode{
+    case Accumulator:
+        // dummy
+        address = 0x00
+
+    case Implied:
+        // dummy
+        address = 0x00
+        
+    case Immediate:
+        // dummy
+        address = 0x00
+        
+    case ZeroPage:
+        address = uint16(cpu.fetch() & 0xff)
+        
+    case ZeroPageX:
+        address = uint16((cpu.fetch() + cpu.Register.X) & 0xff) 
+
+    case ZeroPageY:
+        address = uint16((cpu.fetch() + cpu.Register.Y) & 0xff)
+        
+    case Absolute:
+        lower := uint16(cpu.fetch())
+        upper := uint16(cpu.fetch())
+        address = (upper << 8) | lower
+
+    case AbsoluteX:
+        lower := uint16(cpu.fetch())
+        upper := uint16(cpu.fetch())
+        address = ((upper << 8) | lower) + uint16(cpu.Register.X)
+        
+    case AbsoluteY:
+        lower := uint16(cpu.fetch())
+        upper := uint16(cpu.fetch())
+        address = ((upper << 8) | lower) + uint16(cpu.Register.Y)
+        
+    case Relative:
+        address = uint16(cpu.fetch()) + cpu.Register.PC
+        
+    case IndirectX:
+        base := uint16((cpu.fetch() + cpu.Register.X) & 0xff)
+        address = cpu.Bus.ReadWord(base)
+
+    case IndirectY:
+        base := uint16(cpu.fetch() & 0xff)
+        address = cpu.Bus.ReadWord(base) + uint16(cpu.Register.Y)
+
+    case AbsoluteIndirect:
+        lower := uint16(cpu.fetch())
+        upper := uint16(cpu.fetch())
+        base := (upper << 8) | lower
+        address = cpu.Bus.ReadWord(base)
     }
     
-    return inst 
+    return address
+}
+
+func (cpu CPU) ExecInstruction(inst InstructionSet){
+    switch inst.Inst {
+    case ADC:
+        var operand byte
+        if inst.Mode == Immediate{
+            operand = cpu.fetch()
+        }else{
+            operand = cpu.Bus.ReadByte(cpu.FetchAddress(inst.Mode))
+        }
+        operated := cpu.Register.A +  operand + map[bool]byte{true:1,false:0}[cpu.Register.P.C]
+        overflow := ((cpu.Register.A >> 7) & (operand >> 7) & ^(operated >> 7)) + (^(cpu.Register.A >> 7) & ^(operand >> 7) & (operated >> 7))   
+        cpu.Register.P.N = (operated & 0x80 != 0)
+        cpu.Register.P.Z = (operated == 0)
+        cpu.Register.P.V = (overflow == 1)
+        cpu.Register.P.C = (operated < cpu.Register.A || operated < operand) 
+        cpu.Register.A = operated & 0xff
+    }
 }
