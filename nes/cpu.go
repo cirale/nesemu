@@ -22,7 +22,7 @@ type Register struct{
     PC uint16
 }
 
-func (r Register)reset(bus *Bus){
+func (r *Register)reset(bus *Bus){
     r.S = 0xFD
     r.PC = bus.ReadWord(0xfffc)
     r.P.N = false
@@ -37,7 +37,6 @@ func (r Register)reset(bus *Bus){
 
 func NewRegister() *Register{
     var register Register
-
     return &register
 }
 
@@ -59,7 +58,7 @@ func NewCPU(ram *RAM, rom *GameROM) *CPU{
     return &cpu
 }
 
-func (cpu CPU) reset(){
+func (cpu *CPU) reset(){
     cpu.Register.reset(cpu.Bus)
 }
 
@@ -133,28 +132,131 @@ func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
     case AbsoluteIndirect:
         lower := uint16(cpu.fetch())
         upper := uint16(cpu.fetch())
-        base := (upper << 8) | lower
-        address = cpu.Bus.ReadWord(base)
+        address = (upper << 8) | lower
     }
     
     return address
 }
 
-func (cpu CPU) ExecInstruction(inst InstructionSet){
+func (cpu *CPU)FetchOperand(mode AddressingMode) byte {
+    var operand byte
+    if mode == Immediate{
+        operand = cpu.fetch()
+    }else{
+        operand = cpu.Bus.ReadByte(cpu.FetchAddress(mode))
+    }
+    return operand
+    
+}
+
+func (cpu *CPU) ExecInstruction(inst InstructionSet){
     switch inst.Inst {
     case ADC:
-        var operand byte
-        if inst.Mode == Immediate{
-            operand = cpu.fetch()
-        }else{
-            operand = cpu.Bus.ReadByte(cpu.FetchAddress(inst.Mode))
-        }
-        operated := cpu.Register.A +  operand + map[bool]byte{true:1,false:0}[cpu.Register.P.C]
+        operand := cpu.FetchOperand(inst.Mode)
+        operated := cpu.Register.A + operand + map[bool]byte{true:1,false:0}[cpu.Register.P.C]
         overflow := ((cpu.Register.A >> 7) & (operand >> 7) & ^(operated >> 7)) + (^(cpu.Register.A >> 7) & ^(operand >> 7) & (operated >> 7))   
         cpu.Register.P.N = (operated & 0x80 != 0)
         cpu.Register.P.Z = (operated == 0)
         cpu.Register.P.V = (overflow == 1)
         cpu.Register.P.C = (operated < cpu.Register.A || operated < operand) 
         cpu.Register.A = operated & 0xff
+
+    case SBC:
+        operand := cpu.FetchOperand(inst.Mode)
+        operated := cpu.Register.A - operand - map[bool]byte{true:0,false:1}[cpu.Register.P.C]
+        overflow := ((cpu.Register.A >> 7) & ^(operand >> 7) & ^(operated >> 7)) + (^(cpu.Register.A >> 7) & (operand >> 7) & (operated >> 7))
+        cpu.Register.P.N = (operated & 0x80 != 0)
+        cpu.Register.P.Z = (operated == 0)
+        cpu.Register.P.V = (overflow == 1)
+        cpu.Register.P.C = (operated <= 0x80) 
+        cpu.Register.A = operated & 0xff
+
+    case AND:
+        operand := cpu.FetchOperand(inst.Mode)
+        cpu.Register.A &= operand
+        cpu.Register.P.N = (cpu.Register.A & 0x80 != 0)
+        cpu.Register.P.Z = (cpu.Register.A == 0)
+
+    case ORA:
+        operand := cpu.FetchOperand(inst.Mode)
+        cpu.Register.A |= operand
+        cpu.Register.P.N = (cpu.Register.A & 0x80 != 0)
+        cpu.Register.P.Z = (cpu.Register.A == 0)
+
+    case EOR:
+        operand := cpu.FetchOperand(inst.Mode)
+        cpu.Register.A ^= operand
+        cpu.Register.P.N = (cpu.Register.A & 0x80 != 0)
+        cpu.Register.P.Z = (cpu.Register.A == 0)
+
+    case ASL:
+        var operand byte
+        var address uint16
+        if inst.Mode == Accumulator {
+            operand = cpu.Register.A
+        }else{
+            address = cpu.FetchAddress(inst.Mode)
+            operand = cpu.Bus.ReadByte(address)
+        }
+        operated := (operand << 1) & 0xfe
+        cpu.Register.P.C = (operand & 0x80) != 0
+        if inst.Mode == Accumulator {
+            cpu.Register.A = operated
+        }else{
+            cpu.Bus.WriteByte(address, operated)
+        }
+        
+    case LSR:
+        var operand byte
+        var address uint16
+        if inst.Mode == Accumulator {
+            operand = cpu.Register.A
+        }else{
+            address = cpu.FetchAddress(inst.Mode)
+            operand = cpu.Bus.ReadByte(address)
+        }
+        operated := (operand >> 1) & 0x7f 
+        cpu.Register.P.C = (operand & 0x01) != 0
+        if inst.Mode == Accumulator {
+            cpu.Register.A = operated
+        }else{
+            cpu.Bus.WriteByte(address, operated)
+        }
+        
+    case ROL:
+        var operand byte
+        var address uint16
+        if inst.Mode == Accumulator {
+            operand = cpu.Register.A
+        }else{
+            address = cpu.FetchAddress(inst.Mode)
+            operand = cpu.Bus.ReadByte(address)
+        }
+        operated := (operand << 1) & 0xfe | map[bool]byte{true:1,false:0}[cpu.Register.P.C]  
+        cpu.Register.P.C = (operand & 0x01) != 0
+        if inst.Mode == Accumulator {
+            cpu.Register.A = operated
+        }else{
+            cpu.Bus.WriteByte(address, operated)
+        }
+
+    case ROR:
+        var operand byte
+        var address uint16
+        if inst.Mode == Accumulator {
+            operand = cpu.Register.A
+        }else{
+            address = cpu.FetchAddress(inst.Mode)
+            operand = cpu.Bus.ReadByte(address)
+        }
+        operated := (operand >> 1) & 0x7f | (map[bool]byte{true:1,false:0}[cpu.Register.P.C] << 7)
+        cpu.Register.P.C = (operand & 0x01) != 0
+        if inst.Mode == Accumulator {
+            cpu.Register.A = operated
+        }else{
+            cpu.Bus.WriteByte(address, operated)
+        }
     }
+
+    
 }
