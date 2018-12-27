@@ -1,5 +1,7 @@
 package nes
 
+import "log"
+
 // ----------------------------------------
 // Register
 // ----------------------------------------
@@ -23,6 +25,9 @@ type Register struct{
 }
 
 func (r *Register)reset(bus *Bus){
+    r.A = 0
+    r.X = 0
+    r.Y = 0
     r.S = 0xFD
     r.PC = bus.ReadWord(0xfffc)
     r.P.N = false
@@ -38,6 +43,38 @@ func (r *Register)reset(bus *Bus){
 func NewRegister() *Register{
     var register Register
     return &register
+}
+
+func (register Register)StatusToByte() byte {
+    boolToByte := map[bool]byte{true:1,false:0}
+    var status byte
+    status |= boolToByte[register.P.N] << 7
+    status |= boolToByte[register.P.V] << 6
+    status |= boolToByte[register.P.R] << 5
+    status |= boolToByte[register.P.B] << 4
+    status |= boolToByte[register.P.D] << 3
+    status |= boolToByte[register.P.I] << 2
+    status |= boolToByte[register.P.Z] << 1
+    status |= boolToByte[register.P.C]
+
+    return status
+}
+
+func (register *Register) ByteToStatus(status byte){
+    byteToBool := map[byte]bool{1:true,0:false}
+    register.P.N = byteToBool[(status >> 7) & 0x01]
+    register.P.V = byteToBool[(status >> 6) & 0x01]
+    register.P.R = byteToBool[(status >> 5) & 0x01]
+    register.P.B = byteToBool[(status >> 4) & 0x01]
+    register.P.D = byteToBool[(status >> 3) & 0x01]
+    register.P.I = byteToBool[(status >> 2) & 0x01]
+    register.P.Z = byteToBool[(status >> 1) & 0x01]
+    register.P.C = byteToBool[status & 0x01]
+}
+
+func (r Register) ShowRegister() {
+    log.Printf("A:0x%02x, X:0x%02x, Y:0x%02x, S:0x%02x, PC:0x%04x\n", r.A, r.X, r.Y, r.S, r.PC)
+    log.Printf("N:%v, V:%v, R:%v, B:%v, D:%v, I:%v, Z:%v, C:%v\n",r.P.N, r.P.V, r.P.R, r.P.B, r.P.D, r.P.I, r.P.Z, r.P.C)
 }
 
 // ----------------------------------------
@@ -62,20 +99,27 @@ func (cpu *CPU) reset(){
     cpu.Register.reset(cpu.Bus)
 }
 
-func (cpu CPU) push(data byte){
+func (cpu *CPU) push(data byte){
     cpu.Bus.WriteByte(0x0100 | (uint16(cpu.Register.S & 0xff)), data)
     cpu.Register.S--
 }
 
-func (cpu CPU) pop() byte {
+func (cpu *CPU) pop() byte {
     cpu.Register.S++
     return cpu.Bus.ReadByte(0x0100 | (uint16(cpu.Register.S & 0xff)))
 }
 
-func (cpu CPU) fetch() byte {
+func (cpu *CPU) fetch() byte {
     res := cpu.Bus.ReadByte(cpu.Register.PC)
     cpu.Register.PC++
     return res
+}
+
+func (cpu *CPU) run(){
+    opcode := cpu.fetch()
+    log.Printf("Fetch opcode:0x%02x, at 0x%04x", opcode,cpu.Register.PC-1)
+    inst := cpu.Decode(opcode)
+    cpu.ExecInstruction(inst)
 }
 
 func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
@@ -119,7 +163,7 @@ func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
         address = ((upper << 8) | lower) + uint16(cpu.Register.Y)
         
     case Relative:
-        address = uint16(cpu.fetch()) + cpu.Register.PC
+        address = uint16(int8(cpu.fetch())) + cpu.Register.PC
         
     case IndirectX:
         base := uint16((cpu.fetch() + cpu.Register.X) & 0xff)
@@ -134,7 +178,7 @@ func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
         upper := uint16(cpu.fetch())
         address = (upper << 8) | lower
     }
-    
+    log.Printf("Address Fetch:0x%04x", address)
     return address
 }
 
@@ -145,11 +189,14 @@ func (cpu *CPU)FetchOperand(mode AddressingMode) byte {
     }else{
         operand = cpu.Bus.ReadByte(cpu.FetchAddress(mode))
     }
+    log.Printf("Operand Fetch:0x%02x", operand)
     return operand
     
 }
 
 func (cpu *CPU) ExecInstruction(inst InstructionSet){
+    log.Printf("Exec Instruction:%v, AddressingMode:%v", inst.Inst, inst.Mode)
+    
     switch inst.Inst {
     case ADC:
         operand := cpu.FetchOperand(inst.Mode)
@@ -199,7 +246,7 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
             operand = cpu.Bus.ReadByte(address)
         }
         operated := (operand << 1) & 0xfe
-        cpu.Register.P.C = (operand & 0x80) != 0
+        cpu.Register.P.C = ((operand & 0x80) != 0)
         if inst.Mode == Accumulator {
             cpu.Register.A = operated
         }else{
@@ -216,7 +263,7 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
             operand = cpu.Bus.ReadByte(address)
         }
         operated := (operand >> 1) & 0x7f 
-        cpu.Register.P.C = (operand & 0x01) != 0
+        cpu.Register.P.C = ((operand & 0x01) != 0)
         if inst.Mode == Accumulator {
             cpu.Register.A = operated
         }else{
@@ -233,7 +280,7 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
             operand = cpu.Bus.ReadByte(address)
         }
         operated := (operand << 1) & 0xfe | map[bool]byte{true:1,false:0}[cpu.Register.P.C]  
-        cpu.Register.P.C = (operand & 0x01) != 0
+        cpu.Register.P.C = ((operand & 0x80) != 0)
         if inst.Mode == Accumulator {
             cpu.Register.A = operated
         }else{
@@ -250,13 +297,259 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
             operand = cpu.Bus.ReadByte(address)
         }
         operated := (operand >> 1) & 0x7f | (map[bool]byte{true:1,false:0}[cpu.Register.P.C] << 7)
-        cpu.Register.P.C = (operand & 0x01) != 0
+        cpu.Register.P.C = ((operand & 0x01) != 0)
         if inst.Mode == Accumulator {
             cpu.Register.A = operated
         }else{
             cpu.Bus.WriteByte(address, operated)
         }
-    }
 
+    case BCC:
+        address := cpu.FetchAddress(inst.Mode)
+        if !cpu.Register.P.C {
+            cpu.Register.PC = address
+        }
+    case BCS:
+        address := cpu.FetchAddress(inst.Mode)
+        if cpu.Register.P.C {
+            cpu.Register.PC = address
+        }
+    case BEQ:
+        address := cpu.FetchAddress(inst.Mode)
+        if cpu.Register.P.Z {
+            cpu.Register.PC = address
+        }
+    case BNE:
+        address := cpu.FetchAddress(inst.Mode)
+        if !cpu.Register.P.Z {
+            cpu.Register.PC = address
+        }
+    case BVC:
+        address := cpu.FetchAddress(inst.Mode)
+        if !cpu.Register.P.V {
+            cpu.Register.PC = address
+        }
+    case BVS:
+        address := cpu.FetchAddress(inst.Mode)
+        if cpu.Register.P.V {
+            cpu.Register.PC = address
+        }
+    case BPL:
+        address := cpu.FetchAddress(inst.Mode)
+        if !cpu.Register.P.N {
+            cpu.Register.PC = address
+        }
+    case BMI:
+        address := cpu.FetchAddress(inst.Mode)
+        if cpu.Register.P.N {
+            cpu.Register.PC = address
+        }
+    case BIT:
+        operand := cpu.FetchOperand(inst.Mode)
+        result := operand & cpu.Register.A
+        if result == 0 {
+            cpu.Register.P.Z = true
+        }
+        if operand & 0x80 != 0 {
+            cpu.Register.P.N = true
+        }else{
+            cpu.Register.P.N = false
+        }
+        if operand & 0x40 != 0 {
+            cpu.Register.P.V = true
+        }else{
+            cpu.Register.P.V = false
+        }
+
+    case JMP:
+        address := cpu.FetchAddress(inst.Mode)
+        cpu.Register.PC = address
+
+    case JSR:
+        cpu.push(byte((cpu.Register.PC >> 8) & 0xff))
+        cpu.push(byte(cpu.Register.PC & 0xff))
+        cpu.Register.PC = cpu.FetchAddress(inst.Mode)
+        
+    case RTS:
+        lower := uint16(cpu.pop())
+        upper := uint16(cpu.pop())
+        cpu.Register.PC = (upper << 8) | lower
+        cpu.Register.PC++
+
+    case BRK:
+        cpu.Register.PC++
+        if !cpu.Register.P.I {
+            cpu.Register.P.B = true
+            cpu.push(byte((cpu.Register.PC >> 8) & 0xff))
+            cpu.push(byte(cpu.Register.PC & 0xff))
+            cpu.push(cpu.Register.StatusToByte())
+            cpu.Register.P.I = true
+            cpu.Register.PC = cpu.Bus.ReadWord(0xfffe)
+        }
+        
+    case RTI:
+        cpu.Register.ByteToStatus(cpu.pop())
+        lower := uint16(cpu.pop())
+        upper := uint16(cpu.pop())
+        cpu.Register.PC = (upper << 8) | lower
+
+    case CMP:
+        operand := cpu.FetchOperand(inst.Mode)
+        operated := cpu.Register.A - operand
+        cpu.Register.P.C = ((operated & 0x80) == 0)
+        cpu.Register.P.Z = operated == 0
+        cpu.Register.P.N = ((operated & 0x80) != 0)
+        
+    case CPX:
+        operand := cpu.FetchOperand(inst.Mode)
+        operated := cpu.Register.X - operand
+        cpu.Register.P.C = ((operated & 0x80) == 0)
+        cpu.Register.P.Z = operated == 0
+        cpu.Register.P.N = ((operated & 0x80) != 0)
+        
+    case CPY:
+        operand := cpu.FetchOperand(inst.Mode)
+        operated := cpu.Register.Y - operand
+        cpu.Register.P.C = ((operated & 0x80) == 0)
+        cpu.Register.P.Z = operated == 0
+        cpu.Register.P.N = ((operated & 0x80) != 0)
+
+    case INC:
+        address := cpu.FetchAddress(inst.Mode)
+        operand := cpu.Bus.ReadByte(address)
+        operand++
+        cpu.Register.P.Z = operand == 0
+        cpu.Register.P.N = ((operand & 0x80) != 0)        
+        cpu.Bus.WriteByte(address, operand)
+        
+    case DEC:
+        address := cpu.FetchAddress(inst.Mode)
+        operand := cpu.Bus.ReadByte(address)
+        operand--
+        cpu.Register.P.Z = operand == 0
+        cpu.Register.P.N = ((operand & 0x80) != 0)        
+        cpu.Bus.WriteByte(address, operand)
+
+    case INX:
+        cpu.Register.X++
+        cpu.Register.P.Z = cpu.Register.X == 0
+        cpu.Register.P.N = ((cpu.Register.X & 0x80) != 0)        
+
+    case DEX:
+        cpu.Register.X--
+        cpu.Register.P.Z = cpu.Register.X == 0
+        cpu.Register.P.N = ((cpu.Register.X & 0x80) != 0)        
+        
+    case INY:
+        cpu.Register.Y++
+        cpu.Register.P.Z = cpu.Register.Y == 0
+        cpu.Register.P.N = ((cpu.Register.Y & 0x80) != 0)        
+
+    case DEY:
+        cpu.Register.Y--
+        cpu.Register.P.Z = cpu.Register.Y == 0
+        cpu.Register.P.N = ((cpu.Register.Y & 0x80) != 0)
+
+    case CLC:
+        cpu.Register.P.C = false
+
+    case SEC:
+        cpu.Register.P.C = true
+        
+    case CLI:
+        cpu.Register.P.I = false
+
+    case SEI:
+        cpu.Register.P.I = true
+        
+    case CLD:
+        cpu.Register.P.D = false
+
+    case SED:
+        cpu.Register.P.D = true
+
+    case CLV:
+        cpu.Register.P.V = false
+
+    case LDA:
+        operand := cpu.FetchOperand(inst.Mode)
+        cpu.Register.A = operand
+        cpu.Register.P.Z = operand == 0
+        cpu.Register.P.N = ((operand & 0x80) != 0)
+
+    case LDX:
+        operand := cpu.FetchOperand(inst.Mode)
+        cpu.Register.X = operand
+        cpu.Register.P.Z = operand == 0
+        cpu.Register.P.N = ((operand & 0x80) != 0)
+
+    case LDY:
+        operand := cpu.FetchOperand(inst.Mode)
+        cpu.Register.Y = operand
+        cpu.Register.P.Z = operand == 0
+        cpu.Register.P.N = ((operand & 0x80) != 0)
+
+    case STA:
+        address := cpu.FetchAddress(inst.Mode)
+        cpu.Bus.WriteByte(address, cpu.Register.A)
+        
+    case STX:
+        address := cpu.FetchAddress(inst.Mode)
+        cpu.Bus.WriteByte(address, cpu.Register.X)
+
+    case STY:
+        address := cpu.FetchAddress(inst.Mode)
+        cpu.Bus.WriteByte(address, cpu.Register.Y)
+
+    case TAX:
+        cpu.Register.X = cpu.Register.A
+        cpu.Register.P.Z = cpu.Register.X == 0
+        cpu.Register.P.N = ((cpu.Register.X & 0x80) != 0)
+
+    case TXA:
+        cpu.Register.A = cpu.Register.X
+        cpu.Register.P.Z = cpu.Register.A == 0
+        cpu.Register.P.N = ((cpu.Register.A & 0x80) != 0)
+
+    case TAY:
+        cpu.Register.Y = cpu.Register.A
+        cpu.Register.P.Z = cpu.Register.Y == 0
+        cpu.Register.P.N = ((cpu.Register.Y & 0x80) != 0)
+
+    case TYA:
+        cpu.Register.A = cpu.Register.Y
+        cpu.Register.P.Z = cpu.Register.A == 0
+        cpu.Register.P.N = ((cpu.Register.A & 0x80) != 0)
+
+    case TSX:
+        cpu.Register.X = cpu.Register.S
+        cpu.Register.P.Z = cpu.Register.X == 0
+        cpu.Register.P.N = ((cpu.Register.X & 0x80) != 0)
+
+    case TXS:
+        cpu.Register.S = cpu.Register.X
+        cpu.Register.P.Z = cpu.Register.S == 0
+        cpu.Register.P.N = ((cpu.Register.S & 0x80) != 0)
+
+    case PHA:
+        cpu.push(cpu.Register.A)
+
+    case PLA:
+        cpu.Register.A = cpu.pop()
+        cpu.Register.P.Z = cpu.Register.A == 0
+        cpu.Register.P.N = ((cpu.Register.A & 0x80) != 0)
+
+    case PHP:
+        cpu.push(cpu.Register.StatusToByte())
+
+    case PLP:
+        cpu.Register.ByteToStatus(cpu.pop())
+
+    case NOP:
+        return
+        
+    }
+    
+    return
     
 }

@@ -490,4 +490,166 @@ func TestExecInstruction(t *testing.T){
     if n.CPU.Register.P.C {
         t.Errorf("C is wrong:%v",n.CPU.Register.P.C)
     }
+
+    i.Inst = BCC
+    i.Mode = Relative
+    t.Log("BCC start")
+
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.C = false
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x51 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x52)
+    }
+    
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.C = true
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x01 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x01)
+    }
+
+    i.Inst = BCS
+    i.Mode = Relative
+    t.Log("BCS start")
+
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.C = true
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x51 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x52)
+    }
+    
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.C = false
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x01 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x01)
+    }
+    
+    i.Inst = BEQ
+    i.Mode = Relative
+    t.Log("BEQ start")
+
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.Z = true
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x51 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x52)
+    }
+    
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.Z = false
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x01 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x01)
+    }
+
+    i.Inst = BNE
+    i.Mode = Relative
+    t.Log("BNE start")
+
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.Z = false
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x51 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x52)
+    }
+    
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.Z = true
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x01 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x01)
+    }
+    
+    i.Inst = BVC
+    i.Mode = Relative
+    t.Log("BCC start")
+
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.V = false
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x51 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x52)
+    }
+    
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.V = true
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x01 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x01)
+    }
+
+    i.Inst = BVS
+    i.Mode = Relative
+    t.Log("BCS start")
+
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.V = true
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x51 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x52)
+    }
+    
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.V = false
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x01 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x01)
+    }
+    
+    i.Inst = BPL
+    i.Mode = Relative
+    t.Log("BCC start")
+
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.N = false
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x51 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x52)
+    }
+    
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.N = true
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x01 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x01)
+    }
+
+    i.Inst = BMI
+    i.Mode = Relative
+    t.Log("BCS start")
+
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.N = true
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x51 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x52)
+    }
+    
+    n.Reset()
+    n.CPU.Bus.WriteByte(0x0000, 0x50)
+    n.CPU.Register.P.N = false
+    n.CPU.ExecInstruction(i)
+    if n.CPU.Register.PC != 0x01 {
+        t.Errorf("result is wrong:%x, desire:%x",n.CPU.Register.PC,0x01)
+    }
+
+
 }

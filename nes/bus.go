@@ -3,6 +3,7 @@ package nes
 type Bus struct{
     RAM *RAM
     PRGROM []byte
+    PRGROMSize uint
 }
 
 func (bus Bus) ReadByte(addr uint16) byte{
@@ -40,7 +41,7 @@ func (bus Bus) ReadByte(addr uint16) byte{
         
     }else if 0xc000 <= addr && addr <= 0xffff {
         // program rom
-        if len(bus.PRGROM) > 0x4000 {
+        if bus.PRGROMSize < 2 {
             return bus.PRGROM[addr - 0xc000]    
         }
         return bus.PRGROM[addr - 0x8000]
@@ -63,6 +64,7 @@ func NewBus(ram *RAM, rom *GameROM) *Bus {
     var bus Bus
     bus.RAM = ram
     bus.PRGROM = rom.program
+    bus.PRGROMSize = rom.PRGROMSize
     
     return &bus
 }

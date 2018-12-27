@@ -1,5 +1,10 @@
 package nes
 
+import (
+    "bufio"
+    "os"
+)
+
 type NES struct {
     RAM *RAM
     ROM *GameROM
@@ -15,7 +20,17 @@ func NewNES(rom []byte) *NES{
     
 }
 
-func (nes *NES)Reset(){
-    nes.CPU.reset()
+func (nes *NES) Start(debug bool){
+    for {
+        nes.CPU.run()
+        nes.CPU.Register.ShowRegister()
+        if debug {
+            bufio.NewScanner(os.Stdin).Scan()
+        }
+    }
     
+}
+
+func (nes *NES) Reset(){
+    nes.CPU.reset()
 }

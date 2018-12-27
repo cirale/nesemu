@@ -16,20 +16,8 @@ func main(){
         if err != nil {
             log.Fatal(err)
         }
-        
-        n := nes.Start(bytes) 
-        n.CPU.Bus.WriteByte(0x0000,0x7f)
-        //fmt.Printf("%x",n.CPU.Bus.ReadWord(0x0000))
-        var i nes.InstructionSet
-        i.Inst = nes.ADC
-        i.Mode = nes.Immediate
-        n.CPU.Register.A = 1
-        n.CPU.ExecInstruction(i)
-        fmt.Printf("%x",n.CPU.Register.A)
-        fmt.Printf("N:%v", n.CPU.Register.P.N)
-        fmt.Printf("Z:%v", n.CPU.Register.P.Z)
-        fmt.Printf("C:%v", n.CPU.Register.P.C)
-        fmt.Printf("V:%v", n.CPU.Register.P.V)
+        n := nes.NewNES(bytes)
+        n.Start(true)
     }
 }
 

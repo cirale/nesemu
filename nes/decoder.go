@@ -21,6 +21,39 @@ const (
     AbsoluteIndirect
 )
 
+func (a AddressingMode) String() string {
+    switch a {
+    case Accumulator:
+        return "Accumulator"
+    case Immediate:
+        return "Immediate"
+    case Absolute:
+        return "Absolute"
+    case ZeroPage:
+        return "ZeroPage"
+    case ZeroPageX:
+        return "ZeroPageX"
+    case ZeroPageY:
+        return "ZeroPageY"
+    case AbsoluteX:
+        return "AbsoluteX"
+    case AbsoluteY:
+        return "AbsoluteY"
+    case Implied:
+        return "Implied"
+    case Relative:
+        return "Relative"
+    case IndirectX:
+        return "IndirectX"
+    case IndirectY:
+        return "IndirectY"
+    case AbsoluteIndirect:
+        return "AbsoluteIndirect"
+    default:
+        return ""
+    }
+}
+
 type Instruction int
 const (
     // Calculation
@@ -54,6 +87,125 @@ const (
     // No Operation
     NOP
 )
+
+func (i Instruction) String() string {
+    switch i {
+    case ADC:
+        return "ADC"
+    case SBC:
+        return "SBC"
+    case AND:
+        return "AND"
+    case ORA:
+        return "ORA"
+    case EOR:
+        return "EOR"
+    case ASL:
+        return "ASL"
+    case LSR:
+        return "LSR"
+    case ROL:
+        return "ROL"
+    case ROR:
+        return "ROR"
+    case BCC:
+        return "BCC"
+    case BCS:
+        return "BCS"
+    case BEQ:
+        return "BEQ"
+    case BNE:
+        return "BNE"
+    case BVC:
+        return "BVC"
+    case BVS:
+        return "BVS"
+    case BPL:
+        return "BPL"
+    case BMI:
+        return "BMI"
+    case BIT:
+        return "BIT"
+    case JMP:
+        return "JMP"
+    case JSR:
+        return "JSR"
+    case RTS:
+        return "RTS"
+    case BRK:
+        return "BRK"
+    case RTI:
+        return "RTI"
+    case CMP:
+        return "CMP"
+    case CPX:
+        return "CPX"
+    case CPY:
+        return "CPY"
+    case INC:
+        return "INC"
+    case DEC:
+        return "DEC"
+    case INX:
+        return "INX"
+    case DEX:
+        return "DEX"
+    case INY:
+        return "INY"
+    case DEY:
+        return "DEY"
+    case CLC:
+        return "CLC"
+    case SEC:
+        return "SEC"
+    case CLI:
+        return "CLI"
+    case SEI:
+        return "SEI"
+    case CLD:
+        return "CLD"
+    case SED:
+        return "SED"
+    case CLV:
+        return "CLV"
+    case LDA:
+        return "LDA"
+    case LDX:
+        return "LDX"
+    case LDY:
+        return "LDY"
+    case STA:
+        return "STA"
+    case STX:
+        return "STX"
+    case STY:
+        return "STY"
+    case TAX:
+        return "TAX"
+    case TXA:
+        return "TXA"
+    case TAY:
+        return "TAY"
+    case TYA:
+        return "TYA"
+    case TSX:
+        return "TSX"
+    case TXS:
+        return "TXS"
+    case PHA:
+        return "PHA"
+    case PLA:
+        return "PLA"
+    case PHP:
+        return "PHP"
+    case PLP:
+        return "PLP"
+    case NOP:
+        return "NOP"
+    default:
+        return ""
+    }
+}
 
 
 type InstructionSet struct{
