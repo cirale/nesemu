@@ -20,14 +20,14 @@ func ParseROM(nes []byte) *GameROM {
 
     // fmt.Printf("[% x]", nesFile)
     var programROMPages uint = uint(nes[4])
-    log.Printf("program rom size:%x", programROMPages)
+    log.Printf("debug: program rom size:%x", programROMPages)
     var characterROMPages uint = uint(nes[5])
-    log.Printf("character rom size:%x", characterROMPages)
+    log.Printf("debug: character rom size:%x", characterROMPages)
 
     var characterROMStart uint = nesHeaderSize + programROMPages * programROMPageSize
-    log.Printf("character rom start at 0x%x", characterROMStart)
+    log.Printf("debug: character rom start at 0x%x", characterROMStart)
     var characterROMEnd uint = characterROMStart + characterROMPages * characterROMPageSize
-    log.Printf("character rom end at 0x%x", characterROMEnd)
+    log.Printf("debug: character rom end at 0x%x", characterROMEnd)
 
     return &GameROM{
         program : nes[nesHeaderSize:characterROMStart - 1],

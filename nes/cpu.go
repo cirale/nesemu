@@ -1,12 +1,14 @@
 package nes
 
-import "log"
+import (
+    "log"
+)
 
 // ----------------------------------------
 // Register
 // ----------------------------------------
 
-type Register struct{
+type CPURegister struct{
     A byte
     X byte
     Y byte
@@ -24,7 +26,7 @@ type Register struct{
     PC uint16
 }
 
-func (r *Register)reset(bus *Bus){
+func (r *CPURegister)reset(bus *CPUBus){
     r.A = 0
     r.X = 0
     r.Y = 0
@@ -40,12 +42,12 @@ func (r *Register)reset(bus *Bus){
     r.P.C = false
 }
 
-func NewRegister() *Register{
-    var register Register
+func NewRegister() *CPURegister{
+    var register CPURegister
     return &register
 }
 
-func (register Register)StatusToByte() byte {
+func (register CPURegister)StatusToByte() byte {
     boolToByte := map[bool]byte{true:1,false:0}
     var status byte
     status |= boolToByte[register.P.N] << 7
@@ -60,7 +62,7 @@ func (register Register)StatusToByte() byte {
     return status
 }
 
-func (register *Register) ByteToStatus(status byte){
+func (register *CPURegister) ByteToStatus(status byte){
     byteToBool := map[byte]bool{1:true,0:false}
     register.P.N = byteToBool[(status >> 7) & 0x01]
     register.P.V = byteToBool[(status >> 6) & 0x01]
@@ -72,9 +74,10 @@ func (register *Register) ByteToStatus(status byte){
     register.P.C = byteToBool[status & 0x01]
 }
 
-func (r Register) ShowRegister() {
-    log.Printf("A:0x%02x, X:0x%02x, Y:0x%02x, S:0x%02x, PC:0x%04x\n", r.A, r.X, r.Y, r.S, r.PC)
-    log.Printf("N:%v, V:%v, R:%v, B:%v, D:%v, I:%v, Z:%v, C:%v\n",r.P.N, r.P.V, r.P.R, r.P.B, r.P.D, r.P.I, r.P.Z, r.P.C)
+func (r CPURegister) ShowRegister() {
+    
+    log.Printf("debug: A:0x%02x, X:0x%02x, Y:0x%02x, S:0x%02x, PC:0x%04x\n", r.A, r.X, r.Y, r.S, r.PC)
+    log.Printf("debug: N:%v, V:%v, R:%v, B:%v, D:%v, I:%v, Z:%v, C:%v\n",r.P.N, r.P.V, r.P.R, r.P.B, r.P.D, r.P.I, r.P.Z, r.P.C)
 }
 
 // ----------------------------------------
@@ -82,14 +85,14 @@ func (r Register) ShowRegister() {
 // ----------------------------------------
 
 type CPU struct {
-    Register *Register
-    Bus *Bus
+    Register *CPURegister
+    Bus *CPUBus
 }
 
-func NewCPU(ram *RAM, rom *GameROM) *CPU{
+func NewCPU(ram *RAM, rom *GameROM, ppu *PPU) *CPU{
     var cpu CPU
     cpu.Register = NewRegister()
-    cpu.Bus = NewBus(ram, rom)
+    cpu.Bus = NewBus(ram, rom, ppu)
 
     cpu.reset()
     return &cpu
@@ -97,6 +100,14 @@ func NewCPU(ram *RAM, rom *GameROM) *CPU{
 
 func (cpu *CPU) reset(){
     cpu.Register.reset(cpu.Bus)
+}
+
+func (cpu *CPU) interruptNMI(){
+    
+}
+
+func (cpu *CPU) interruptIRQ(){
+    
 }
 
 func (cpu *CPU) push(data byte){
@@ -117,7 +128,7 @@ func (cpu *CPU) fetch() byte {
 
 func (cpu *CPU) run(){
     opcode := cpu.fetch()
-    log.Printf("Fetch opcode:0x%02x, at 0x%04x", opcode,cpu.Register.PC-1)
+    log.Printf("debug: Fetch opcode:0x%02x, at 0x%04x", opcode,cpu.Register.PC-1)
     inst := cpu.Decode(opcode)
     cpu.ExecInstruction(inst)
 }
@@ -178,7 +189,7 @@ func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
         upper := uint16(cpu.fetch())
         address = (upper << 8) | lower
     }
-    log.Printf("Address Fetch:0x%04x", address)
+    log.Printf("debug: Address Fetch:0x%04x", address)
     return address
 }
 
@@ -189,13 +200,13 @@ func (cpu *CPU)FetchOperand(mode AddressingMode) byte {
     }else{
         operand = cpu.Bus.ReadByte(cpu.FetchAddress(mode))
     }
-    log.Printf("Operand Fetch:0x%02x", operand)
+    log.Printf("debug: Operand Fetch:0x%02x", operand)
     return operand
     
 }
 
 func (cpu *CPU) ExecInstruction(inst InstructionSet){
-    log.Printf("Exec Instruction:%v, AddressingMode:%v", inst.Inst, inst.Mode)
+    log.Printf("debug: Exec Instruction:%v, AddressingMode:%v", inst.Inst, inst.Mode)
     
     switch inst.Inst {
     case ADC:
