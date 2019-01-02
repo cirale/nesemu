@@ -126,17 +126,17 @@ func (cpu *CPU) fetch() byte {
     return res
 }
 
-func (cpu *CPU) run(){
+func (cpu *CPU) run() int {
     opcode := cpu.fetch()
     log.Printf("debug: Fetch opcode:0x%02x, at 0x%04x", opcode,cpu.Register.PC-1)
     inst := cpu.Decode(opcode)
-    cpu.ExecInstruction(inst)
+    return cpu.ExecInstruction(&inst)
 }
 
-func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
+func (cpu CPU) FetchAddress(inst *InstructionSet) uint16 {
     var address uint16
     
-    switch mode{
+    switch inst.Mode {
     case Accumulator:
         // dummy
         address = 0x00
@@ -153,7 +153,7 @@ func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
         address = uint16(cpu.fetch() & 0xff)
         
     case ZeroPageX:
-        address = uint16((cpu.fetch() + cpu.Register.X) & 0xff) 
+        address = uint16((cpu.fetch() + cpu.Register.X) & 0xff)
 
     case ZeroPageY:
         address = uint16((cpu.fetch() + cpu.Register.Y) & 0xff)
@@ -167,14 +167,23 @@ func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
         lower := uint16(cpu.fetch())
         upper := uint16(cpu.fetch())
         address = ((upper << 8) | lower) + uint16(cpu.Register.X)
+        if address & 0xff00 != cpu.Register.PC & 0xff00 {
+            inst.Cycle++
+        }
         
     case AbsoluteY:
         lower := uint16(cpu.fetch())
         upper := uint16(cpu.fetch())
         address = ((upper << 8) | lower) + uint16(cpu.Register.Y)
+        if address & 0xff00 != cpu.Register.PC & 0xff00 {
+            inst.Cycle++
+        }
         
     case Relative:
         address = uint16(int8(cpu.fetch())) + cpu.Register.PC
+        if address & 0xff00 != cpu.Register.PC & 0xff00 {
+            inst.Cycle++
+        }
         
     case IndirectX:
         base := uint16((cpu.fetch() + cpu.Register.X) & 0xff)
@@ -183,6 +192,9 @@ func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
     case IndirectY:
         base := uint16(cpu.fetch() & 0xff)
         address = cpu.Bus.ReadWord(base) + uint16(cpu.Register.Y)
+        if address & 0xff00 != cpu.Register.PC & 0xff00 {
+            inst.Cycle++
+        }
 
     case AbsoluteIndirect:
         lower := uint16(cpu.fetch())
@@ -193,24 +205,24 @@ func (cpu CPU) FetchAddress(mode AddressingMode) uint16 {
     return address
 }
 
-func (cpu *CPU)FetchOperand(mode AddressingMode) byte {
+func (cpu *CPU)FetchOperand(inst *InstructionSet) byte {
     var operand byte
-    if mode == Immediate{
+    if inst.Mode == Immediate{
         operand = cpu.fetch()
     }else{
-        operand = cpu.Bus.ReadByte(cpu.FetchAddress(mode))
+        operand = cpu.Bus.ReadByte(cpu.FetchAddress(inst))
     }
     log.Printf("debug: Operand Fetch:0x%02x", operand)
     return operand
     
 }
 
-func (cpu *CPU) ExecInstruction(inst InstructionSet){
+func (cpu *CPU) ExecInstruction(inst *InstructionSet) int {
     log.Printf("debug: Exec Instruction:%v, AddressingMode:%v", inst.Inst, inst.Mode)
     
     switch inst.Inst {
     case ADC:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         operated := cpu.Register.A + operand + map[bool]byte{true:1,false:0}[cpu.Register.P.C]
         overflow := ((cpu.Register.A >> 7) & (operand >> 7) & ^(operated >> 7)) + (^(cpu.Register.A >> 7) & ^(operand >> 7) & (operated >> 7))   
         cpu.Register.P.N = (operated & 0x80 != 0)
@@ -220,7 +232,7 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         cpu.Register.A = operated & 0xff
 
     case SBC:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         operated := cpu.Register.A - operand - map[bool]byte{true:0,false:1}[cpu.Register.P.C]
         overflow := ((cpu.Register.A >> 7) & ^(operand >> 7) & ^(operated >> 7)) + (^(cpu.Register.A >> 7) & (operand >> 7) & (operated >> 7))
         cpu.Register.P.N = (operated & 0x80 != 0)
@@ -230,19 +242,19 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         cpu.Register.A = operated & 0xff
 
     case AND:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         cpu.Register.A &= operand
         cpu.Register.P.N = (cpu.Register.A & 0x80 != 0)
         cpu.Register.P.Z = (cpu.Register.A == 0)
 
     case ORA:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         cpu.Register.A |= operand
         cpu.Register.P.N = (cpu.Register.A & 0x80 != 0)
         cpu.Register.P.Z = (cpu.Register.A == 0)
 
     case EOR:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         cpu.Register.A ^= operand
         cpu.Register.P.N = (cpu.Register.A & 0x80 != 0)
         cpu.Register.P.Z = (cpu.Register.A == 0)
@@ -253,7 +265,7 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         if inst.Mode == Accumulator {
             operand = cpu.Register.A
         }else{
-            address = cpu.FetchAddress(inst.Mode)
+            address = cpu.FetchAddress(inst)
             operand = cpu.Bus.ReadByte(address)
         }
         operated := (operand << 1) & 0xfe
@@ -270,7 +282,7 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         if inst.Mode == Accumulator {
             operand = cpu.Register.A
         }else{
-            address = cpu.FetchAddress(inst.Mode)
+            address = cpu.FetchAddress(inst)
             operand = cpu.Bus.ReadByte(address)
         }
         operated := (operand >> 1) & 0x7f 
@@ -287,7 +299,7 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         if inst.Mode == Accumulator {
             operand = cpu.Register.A
         }else{
-            address = cpu.FetchAddress(inst.Mode)
+            address = cpu.FetchAddress(inst)
             operand = cpu.Bus.ReadByte(address)
         }
         operated := (operand << 1) & 0xfe | map[bool]byte{true:1,false:0}[cpu.Register.P.C]  
@@ -304,7 +316,7 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         if inst.Mode == Accumulator {
             operand = cpu.Register.A
         }else{
-            address = cpu.FetchAddress(inst.Mode)
+            address = cpu.FetchAddress(inst)
             operand = cpu.Bus.ReadByte(address)
         }
         operated := (operand >> 1) & 0x7f | (map[bool]byte{true:1,false:0}[cpu.Register.P.C] << 7)
@@ -316,47 +328,55 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         }
 
     case BCC:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         if !cpu.Register.P.C {
             cpu.Register.PC = address
+            inst.Cycle++
         }
     case BCS:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         if cpu.Register.P.C {
             cpu.Register.PC = address
+            inst.Cycle++
         }
     case BEQ:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         if cpu.Register.P.Z {
             cpu.Register.PC = address
+            inst.Cycle++
         }
     case BNE:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         if !cpu.Register.P.Z {
             cpu.Register.PC = address
+            inst.Cycle++
         }
     case BVC:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         if !cpu.Register.P.V {
             cpu.Register.PC = address
+            inst.Cycle++
         }
     case BVS:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         if cpu.Register.P.V {
             cpu.Register.PC = address
+            inst.Cycle++
         }
     case BPL:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         if !cpu.Register.P.N {
             cpu.Register.PC = address
+            inst.Cycle++
         }
     case BMI:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         if cpu.Register.P.N {
             cpu.Register.PC = address
+            inst.Cycle++
         }
     case BIT:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         result := operand & cpu.Register.A
         if result == 0 {
             cpu.Register.P.Z = true
@@ -373,13 +393,13 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         }
 
     case JMP:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         cpu.Register.PC = address
 
     case JSR:
         cpu.push(byte((cpu.Register.PC >> 8) & 0xff))
         cpu.push(byte(cpu.Register.PC & 0xff))
-        cpu.Register.PC = cpu.FetchAddress(inst.Mode)
+        cpu.Register.PC = cpu.FetchAddress(inst)
         
     case RTS:
         lower := uint16(cpu.pop())
@@ -405,28 +425,28 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         cpu.Register.PC = (upper << 8) | lower
 
     case CMP:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         operated := cpu.Register.A - operand
         cpu.Register.P.C = ((operated & 0x80) == 0)
         cpu.Register.P.Z = operated == 0
         cpu.Register.P.N = ((operated & 0x80) != 0)
         
     case CPX:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         operated := cpu.Register.X - operand
         cpu.Register.P.C = ((operated & 0x80) == 0)
         cpu.Register.P.Z = operated == 0
         cpu.Register.P.N = ((operated & 0x80) != 0)
         
     case CPY:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         operated := cpu.Register.Y - operand
         cpu.Register.P.C = ((operated & 0x80) == 0)
         cpu.Register.P.Z = operated == 0
         cpu.Register.P.N = ((operated & 0x80) != 0)
 
     case INC:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         operand := cpu.Bus.ReadByte(address)
         operand++
         cpu.Register.P.Z = operand == 0
@@ -434,7 +454,7 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         cpu.Bus.WriteByte(address, operand)
         
     case DEC:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         operand := cpu.Bus.ReadByte(address)
         operand--
         cpu.Register.P.Z = operand == 0
@@ -483,33 +503,33 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
         cpu.Register.P.V = false
 
     case LDA:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         cpu.Register.A = operand
         cpu.Register.P.Z = operand == 0
         cpu.Register.P.N = ((operand & 0x80) != 0)
 
     case LDX:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         cpu.Register.X = operand
         cpu.Register.P.Z = operand == 0
         cpu.Register.P.N = ((operand & 0x80) != 0)
 
     case LDY:
-        operand := cpu.FetchOperand(inst.Mode)
+        operand := cpu.FetchOperand(inst)
         cpu.Register.Y = operand
         cpu.Register.P.Z = operand == 0
         cpu.Register.P.N = ((operand & 0x80) != 0)
 
     case STA:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         cpu.Bus.WriteByte(address, cpu.Register.A)
         
     case STX:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         cpu.Bus.WriteByte(address, cpu.Register.X)
 
     case STY:
-        address := cpu.FetchAddress(inst.Mode)
+        address := cpu.FetchAddress(inst)
         cpu.Bus.WriteByte(address, cpu.Register.Y)
 
     case TAX:
@@ -556,11 +576,8 @@ func (cpu *CPU) ExecInstruction(inst InstructionSet){
     case PLP:
         cpu.Register.ByteToStatus(cpu.pop())
 
-    case NOP:
-        return
-        
     }
     
-    return
+    return inst.Cycle
     
 }

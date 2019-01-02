@@ -27,10 +27,16 @@ type PPURegister struct {
     }
     OAMADDR byte
     OAMDATA byte
-    PPUSCROLL uint16
+    PPUSCROLLX byte
+    PPUSCROLLY byte
     PPUADDR uint16
     PPUDATA byte
     
+    //register write order status
+    ScrollXWrited bool
+    PPUAddressUpperBitWrited bool
+
+
 }
 
 func NewPPURegister() *PPURegister {
@@ -40,9 +46,12 @@ func NewPPURegister() *PPURegister {
     register.ByteToPPUSTATUS(0)
     register.OAMADDR = 0
     register.OAMDATA = 0
-    register.PPUSCROLL = 0
+    register.PPUSCROLLX = 0
+    register.PPUSCROLLY = 0
     register.PPUADDR = 0
     register.PPUDATA = 0
+    register.ScrollXWrited = false
+    register.PPUAddressUpperBitWrited = false
     return &register
 }
 
@@ -51,8 +60,11 @@ func (register *PPURegister) Reset() {
     register.ByteToPPUMASK(0)
     register.OAMADDR = 0
     register.OAMDATA = 0
-    register.PPUSCROLL = 0
+    register.PPUSCROLLX = 0
+    register.PPUSCROLLY = 0
     register.PPUDATA = 0
+    register.ScrollXWrited = false
+    register.PPUAddressUpperBitWrited = false
 }
 
 //probably will not use
@@ -123,7 +135,9 @@ type PPU struct {
     Register *PPURegister
     Bus *PPUBus
     SpriteRam *RAM
-    
+
+    //buffer for ppudata access
+    PPUDataBuffer byte
 }
 
 func NewPPU(vram *RAM, rom *GameROM) *PPU {
@@ -137,6 +151,7 @@ func NewPPU(vram *RAM, rom *GameROM) *PPU {
 func (ppu *PPU) ReadPPURegister(addr uint16) byte{
     reg := (addr - 0x2000) % 8
     if reg == 0x0002 {
+        ppu.Register.ScrollXWrited = false
         return ppu.Register.PPUSTATUSToByte()
     }else if reg == 0x0004 {
         return ppu.Register.OAMDATA
@@ -147,7 +162,13 @@ func (ppu *PPU) ReadPPURegister(addr uint16) byte{
         }else{
             ppu.Register.PPUADDR += 0x20
         }
-        return ppu.Bus.ReadByte(address)
+        if address <= 0x3eff {
+            res := ppu.PPUDataBuffer
+            ppu.PPUDataBuffer = ppu.Bus.ReadByte(address)
+            return res
+        }else{ 
+           return ppu.Bus.ReadByte(address)
+        }  
     }else{
         log.Printf("error: read access to write only register:%x",addr)
         return 0
@@ -164,5 +185,31 @@ func (ppu *PPU) WritePPURegister(addr uint16, data byte){
         ppu.Register.OAMADDR = data
     }else if reg == 0x0004 {
         ppu.SpriteRam.Write(uint16(ppu.Register.OAMADDR),data)
+        ppu.Register.OAMADDR++
+    }else if reg ==0x0005 {
+        if !ppu.Register.ScrollXWrited {
+            ppu.Register.PPUSCROLLX = data
+            ppu.Register.ScrollXWrited = true
+        }else{
+            ppu.Register.PPUSCROLLY = data
+            ppu.Register.ScrollXWrited = false
+        }
+    }else if reg == 0x0006 {
+        if !ppu.Register.PPUAddressUpperBitWrited {
+            ppu.Register.PPUADDR = uint16(data) << 8
+            ppu.Register.PPUAddressUpperBitWrited = true
+        }else{
+            ppu.Register.PPUADDR |= uint16(data)
+            ppu.Register.PPUAddressUpperBitWrited = false
+        }
+    }else if reg == 0x0007 {
+        ppu.Bus.WriteByte(ppu.Register.PPUADDR, data)
+        if !ppu.Register.PPUCTRL.PPUAddressIncrement {
+            ppu.Register.PPUADDR += 0x01
+        }else{
+            ppu.Register.PPUADDR += 0x20
+        }
+    }else{
+        log.Printf("error: write access to read only register:%x",addr)
     }
 }

@@ -91,6 +91,7 @@ type PPUBus struct {
     VRAM *RAM
     CHRROM []byte
     CHRROMSize uint
+    PalletesTable []byte
 }
 
 func NewPPUBus(ram *RAM, rom *GameROM) *PPUBus {
@@ -98,14 +99,39 @@ func NewPPUBus(ram *RAM, rom *GameROM) *PPUBus {
     bus.VRAM = ram
     bus.CHRROM = rom.character
     bus.CHRROMSize = rom.CHRROMSize
+    bus.PalletesTable = make([]byte, 0x20)
     
     return &bus
 }
 
 func (bus *PPUBus) ReadByte(addr uint16) byte {
-    return bus.VRAM.Read(addr)
+    if 0x00 <= addr && addr <= 0x0fff {
+        return bus.CHRROM[addr]
+    }else if 0x1000 <= addr && addr <= 0x1fff {
+        return bus.CHRROM[addr - 0x1000]
+    }else if 0x2000 <= addr && addr <= 0x2fff {
+        return bus.VRAM.Read(addr - 0x2000)
+    }else if 0x3000 <= addr && addr <= 0x3eff {
+        return bus.VRAM.Read(addr - 0x3000)
+    }else if 0x3f00 <= addr && addr <= 0x3fff {
+        address := (addr - 0x3f00) % 0x20
+        return bus.PalletesTable[address]
+    }else{
+        return 0
+    }
 }
 
 func (bus *PPUBus) WriteByte(addr uint16, data byte){
-    
+    if 0x00 <= addr && addr <= 0x0fff {
+        bus.CHRROM[addr] = data
+    }else if 0x1000 <= addr && addr <= 0x1fff {
+        bus.CHRROM[addr - 0x1000] = data
+    }else if 0x2000 <= addr && addr <= 0x2fff {
+        bus.VRAM.Write(addr - 0x2000, data)
+    }else if 0x3000 <= addr && addr <= 0x3eff {
+        bus.VRAM.Write(addr - 0x3000, data)
+    }else if 0x3f00 <= addr && addr <= 0x3fff {
+        address := (addr - 0x3f00) % 0x20
+        bus.PalletesTable[address] = data
+    }
 }
