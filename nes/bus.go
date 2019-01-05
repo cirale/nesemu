@@ -91,7 +91,7 @@ type PPUBus struct {
     VRAM *RAM
     CHRROM []byte
     CHRROMSize uint
-    PalletesTable []byte
+    PalletesTable *RAM
 }
 
 func NewPPUBus(ram *RAM, rom *GameROM) *PPUBus {
@@ -99,8 +99,8 @@ func NewPPUBus(ram *RAM, rom *GameROM) *PPUBus {
     bus.VRAM = ram
     bus.CHRROM = rom.character
     bus.CHRROMSize = rom.CHRROMSize
-    bus.PalletesTable = make([]byte, 0x20)
-    
+    bus.PalletesTable = NewRAM(0x20)
+
     return &bus
 }
 
@@ -115,7 +115,7 @@ func (bus *PPUBus) ReadByte(addr uint16) byte {
         return bus.VRAM.Read(addr - 0x3000)
     }else if 0x3f00 <= addr && addr <= 0x3fff {
         address := (addr - 0x3f00) % 0x20
-        return bus.PalletesTable[address]
+        return bus.PalletesTable.Read(address)
     }else{
         return 0
     }
@@ -132,6 +132,6 @@ func (bus *PPUBus) WriteByte(addr uint16, data byte){
         bus.VRAM.Write(addr - 0x3000, data)
     }else if 0x3f00 <= addr && addr <= 0x3fff {
         address := (addr - 0x3f00) % 0x20
-        bus.PalletesTable[address] = data
+        bus.PalletesTable.Write(address, data)
     }
 }

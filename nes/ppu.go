@@ -136,6 +136,8 @@ type PPU struct {
     Bus *PPUBus
     SpriteRam *RAM
 
+    Clock int
+    
     //buffer for ppudata access
     PPUDataBuffer byte
 }
@@ -212,4 +214,25 @@ func (ppu *PPU) WritePPURegister(addr uint16, data byte){
     }else{
         log.Printf("error: write access to read only register:%x",addr)
     }
+}
+
+type Tile struct {
+    sprite []byte
+    pallete byte
+}
+
+func NewTile(posX byte, posY byte, offset uint16, bus PPUBus) Tile {
+    var tile Tile
+    tile.sprite = make([]byte,16)
+
+    SpriteAddress := uint16(posY * 0x20 + posX) + offset
+    BlockID := int((posX % 4) / 2) + int((posY % 4) / 2) * 2
+    AttrAddress := SpriteAddress + 0x03c0
+    
+    for i := uint16(0); i < 16; i++ {
+        tile.sprite = append(tile.sprite, bus.ReadByte(SpriteAddress + i))
+    }
+    tile.pallete = (bus.ReadByte(AttrAddress) >> byte(BlockID * 2)) & 0x3 
+    
+    return tile
 }
