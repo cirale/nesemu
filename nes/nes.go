@@ -3,6 +3,7 @@ package nes
 import (
     "bufio"
     "os"
+    "log"
 )
 
 type NES struct {
@@ -26,9 +27,10 @@ func NewNES(rom []byte) *NES{
 
 func (nes *NES) Start(debug bool){
 
-    
     for {
-        nes.CPU.run()
+        cycle := nes.CPU.run()
+        log.Printf("Instruction Finish. Cycle:%d", cycle)
+        nes.PPU.run(cycle*3)
         nes.CPU.Register.ShowRegister()
         if debug {
             bufio.NewScanner(os.Stdin).Scan()
