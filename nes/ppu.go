@@ -4,8 +4,8 @@ import (
     "log"
     "image"
     "os"
-    "fmt"
     "image/jpeg"
+    "fmt"
 )
 
 type PPURegister struct {
@@ -42,7 +42,11 @@ type PPURegister struct {
     ScrollXWrited bool
     PPUAddressUpperBitWrited bool
 
+}
 
+func (regiser PPURegister)ShowPPURegister(){
+    log.Printf("debug: PPUCTRL:0x%02x, PPUMASK:0x%02x, PPUSTATUS:0x%02x, OAMADDR:0x%02x, ", regiser.PPUCTRLToByte(),regiser.PPUMASKToByte(),regiser.PPUSTATUSToByte(),regiser.OAMADDR)
+    log.Printf("debug: PPUSCROLLX:0x%02x, PPUSCROLL:0x%02x, PPUADDR:0x%04x", regiser.PPUSCROLLX,regiser.PPUSCROLLY,regiser.PPUADDR)
 }
 
 func NewPPURegister() *PPURegister {
@@ -145,7 +149,8 @@ type PPU struct {
     Clock int
     Line int
 
-    Image *image.RGBA
+    //Image *image.RGBA
+    Image []byte
     colors [][]byte
     
     //buffer for ppudata access
@@ -160,11 +165,15 @@ func NewPPU(vram *RAM, rom *GameROM) *PPU {
     ppu.Bus = NewPPUBus(vram, rom)
     ppu.SpriteRam = NewRAM(0x100)
     ppu.Register = NewPPURegister()
-    ppu.Image = image.NewRGBA(image.Rect(0, 0, 256, 240))
-
+    ppu.Image = make([]byte,256*240*4)
+    ppu.Reset()
+    
     return &ppu
 }
 
+func (ppu *PPU) Reset(){
+    ppu.Register.Reset()
+}
 
 func (ppu *PPU) ReadPPURegister(addr uint16) byte{
     reg := (addr - 0x2000) % 8
@@ -234,29 +243,35 @@ func (ppu *PPU) WritePPURegister(addr uint16, data byte){
 
 func (ppu *PPU) run(cpuCycle int){
     ppu.Clock += cpuCycle
-    log.Printf("debug: PPUClock:%d", ppu.Clock)
     if ppu.Clock >= 341 {
-        for i := 0; i < 0x20; i++ {
-            NewTile(i, ppu.Line/8, 0, ppu.Bus).TileToImage(ppu.Image, ppu.Bus)
-        }
-        ppu.Line += 8
         ppu.Clock -= 341
-        log.Printf("debug: Line:%d", ppu.Line)
+        ppu.Line++
+        log.Printf("Line:%d", ppu.Line)
+    }
+    log.Printf("debug: PPUClock:%d", ppu.Clock)
+    if ppu.Line > 0 && ppu.Line <= 240 && ppu.Line % 8 == 0 {
+        for i := 0; i < 0x32; i++ {
+            NewTile(i, (ppu.Line / 8) - 1, 0x2000, ppu.Bus).TileToImage(ppu.Image, ppu.Bus)
+        }
+    }
+    
+    if ppu.Line == 241 {
+        ppu.Register.PPUSTATUS.VBlack = true
+        //log.Printf("error: Image:%v", ppu.Image)
+        i := image.NewRGBA(image.Rect(0, 0, 256, 240))
+        i.Pix = ppu.Image
         
-        if ppu.Line >= 240 &&  !ppu.Register.PPUSTATUS.VBlack {
-            ppu.Register.PPUSTATUS.VBlack = true
-            file, _ := os.Create(fmt.Sprintf("%d.jpg", ppu.Count))
-            defer file.Close()
-            if err := jpeg.Encode(file, ppu.Image, &jpeg.Options{100}); err != nil {
-                panic(err)
-            }
-            ppu.Count++
-            
+        file, _ := os.Create(fmt.Sprintf("%d.jpg", ppu.Count))
+        defer file.Close()
+        if err := jpeg.Encode(file, i, &jpeg.Options{100}); err != nil {
+            panic(err)
         }
-        if ppu.Line >= 260 {
-            ppu.Line -= 260
-            ppu.Register.PPUSTATUS.VBlack = false
-        }
+        ppu.Count++
+        
+    }
+    if ppu.Line >= 260 {
+        ppu.Line -= 260
+        ppu.Register.PPUSTATUS.VBlack = false
     }
 
 }
@@ -274,37 +289,38 @@ func NewTile(posX int, posY int, offset uint16, bus *PPUBus) *Tile {
     tile.posX = posX
     tile.posY = posY
     tile.offset = offset
-    tile.sprite = make([]byte,16)
+    //tile.sprite = make([]byte,16)
 
-    SpriteNo := uint16(posY * 0x20 + posX) + offset
-    SpriteAddress := SpriteNo * 16
+    SpriteNo := bus.ReadByte(uint16(posY * 0x20 + posX) + offset)
+    SpriteAddress := uint16(SpriteNo) * 16
     BlockID := int((posX % 4) / 2) + int((posY % 4) / 2) * 2
     AttrAddress := SpriteAddress + 0x03c0
     
     for i := uint16(0); i < 16; i++ {
         tile.sprite = append(tile.sprite, bus.ReadByte(SpriteAddress + i))
     }
-    tile.pallete = (bus.ReadByte(AttrAddress) >> byte(BlockID * 2)) & 0x3 
+    tile.pallete = (bus.ReadByte(AttrAddress) >> byte(BlockID * 2)) & 0x3
+    
     return &tile
 }
 
-func (tile Tile) TileToImage(Image *image.RGBA, bus *PPUBus) {
-    ColorPallete := make([]byte, 4)
+func (tile Tile) TileToImage(Image []byte, bus *PPUBus) {
+    var ColorPallete []byte
     //make color pallete
     for i := uint16(0); i < 4; i++ {
-        ColorPallete = append(ColorPallete, bus.ReadByte(uint16(0x3f00) + uint16(tile.pallete) + i))
+        ColorPallete = append(ColorPallete, bus.ReadByte(uint16(0x3f00) + uint16(tile.pallete)*4 + i))
     }
-    
+
     for i := 0; i < 8; i++ {
         LowerBits := tile.sprite[i]
         UpperBits := tile.sprite[i + 8]
-        for j := 0; j > 8; j++ {
+        for j := 0; j < 8; j++ {
             color := (LowerBits >> byte(j)) & 0x1 | (((UpperBits >> byte(j)) & 0x1) << 1)
             RGB := ColorRGB[ColorPallete[color]]
             posX := int(tile.posX * 8 + (7 - j))
             posY := int(tile.posY * 8 + i)
-            pos := (posY - Image.Rect.Min.Y) * Image.Stride + (posX - Image.Rect.Min.X) * 4
-            Image.Pix[pos], Image.Pix[pos+1], Image.Pix[pos+2], Image.Pix[pos+3] = RGB[0], RGB[1], RGB[2], 255 
+            pos := posY * 256 + posX * 4
+            Image[pos], Image[pos+1], Image[pos+2], Image[pos+3] = RGB[0], RGB[1], RGB[2], 255 
         }
     }
 }

@@ -32,6 +32,7 @@ func (nes *NES) Start(debug bool){
         log.Printf("Instruction Finish. Cycle:%d", cycle)
         nes.PPU.run(cycle*3)
         nes.CPU.Register.ShowRegister()
+        nes.PPU.Register.ShowPPURegister()
         if debug {
             bufio.NewScanner(os.Stdin).Scan()
         }

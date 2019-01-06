@@ -38,6 +38,7 @@ func main(){
         
         n := nes.NewNES(bytes)
         n.Start(debug)
+        
+        
     }
 }
-
