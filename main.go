@@ -7,6 +7,9 @@ import (
     "log"
     "github.com/comail/colog"    
     "./nes"
+    "net/http"
+    "github.com/gin-gonic/gin"
+    "gopkg.in/olahol/melody.v1"
 )
 
 func main(){
@@ -35,10 +38,38 @@ func main(){
             Flag:   log.Ldate | log.Ltime | log.Lshortfile,
         })
         colog.Register()
-        
-        n := nes.NewNES(bytes)
-        n.Start(debug)
-        
+
+        ws := melody.New()
+        n := nes.NewNES(bytes, ws)
+        ServerInit(ws, n)
+
+        //n.Start(debug)
         
     }
+}
+
+func ServerInit(m *melody.Melody, n *nes.NES){
+    router := gin.Default()
+
+    rg := router.Group("nesemu")
+    rg.GET("/",func(ctx *gin.Context){
+        http.ServeFile(ctx.Writer, ctx.Request, "./view/index.html")
+        if !n.Running {
+            n.Start(false)
+        }
+    })
+    
+    rg.GET("/ws",func(ctx *gin.Context){
+        m.HandleRequest(ctx.Writer, ctx.Request)
+    })
+
+    m.HandleConnect(func(s *melody.Session) {
+        log.Printf("debug: websocket connection open. [session: %#v]\n", s)
+    })
+
+    m.HandleDisconnect(func(s *melody.Session) {
+        log.Printf("debug: websocket connection close. [session: %#v]\n", s)
+    })
+
+    router.Run(":8989")
 }

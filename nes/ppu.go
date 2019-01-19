@@ -3,9 +3,12 @@ package nes
 import (
     "log"
     "image"
-    "os"
-    "image/jpeg"
+    "image/png"
+    "bytes"
     "fmt"
+    "encoding/base64"
+    "gopkg.in/olahol/melody.v1"
+    
 )
 
 type PPURegister struct {
@@ -152,20 +155,19 @@ type PPU struct {
     //Image *image.RGBA
     Image []byte
     colors [][]byte
+    ws *melody.Melody
     
     //buffer for ppudata access
     PPUDataBuffer byte
-
-    //for debug
-    Count int
 }
 
-func NewPPU(vram *RAM, rom *GameROM) *PPU {
+func NewPPU(vram *RAM, rom *GameROM, ws *melody.Melody) *PPU {
     var ppu PPU
     ppu.Bus = NewPPUBus(vram, rom)
     ppu.SpriteRam = NewRAM(0x100)
     ppu.Register = NewPPURegister()
     ppu.Image = make([]byte,256*240*4)
+    ppu.ws = ws
     ppu.Reset()
     
     return &ppu
@@ -261,12 +263,19 @@ func (ppu *PPU) run(cpuCycle int){
         i := image.NewRGBA(image.Rect(0, 0, 256, 240))
         i.Pix = ppu.Image
         
-        file, _ := os.Create(fmt.Sprintf("%d.jpg", ppu.Count))
-        defer file.Close()
-        if err := jpeg.Encode(file, i, &jpeg.Options{100}); err != nil {
+        var buffer bytes.Buffer
+        if err := png.Encode(&buffer, i); err != nil {
             panic(err)
         }
-        ppu.Count++
+        imgEnc := fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(buffer.Bytes()))
+        var msg Message
+        msg.Msgtype = "image"
+        msg.Data = imgEnc
+        if s, err := msg.toBytes(); err != nil{
+            log.Fatal(err)
+        }else{
+            ppu.ws.Broadcast(s)
+        }
         
     }
     if ppu.Line >= 260 {
@@ -289,7 +298,6 @@ func NewTile(posX int, posY int, offset uint16, bus *PPUBus) *Tile {
     tile.posX = posX
     tile.posY = posY
     tile.offset = offset
-    //tile.sprite = make([]byte,16)
 
     SpriteNo := bus.ReadByte(uint16(posY * 0x20 + posX) + offset)
     SpriteAddress := uint16(SpriteNo) * 16
@@ -324,7 +332,6 @@ func (tile Tile) TileToImage(Image []byte, bus *PPUBus) {
         }
     }
 }
-
 
 var ColorRGB [][]byte =  [][]byte{
     {0x80, 0x80, 0x80}, {0x00, 0x3D, 0xA6}, {0x00, 0x12, 0xB0}, {0x44, 0x00, 0x96},

@@ -1,0 +1,24 @@
+<html>
+    <body>
+        <canvas id="display" width="256" height="240"></canvas>
+        <script>
+         var url = "ws://localhost:8989/nesemu/ws";
+         ws = new WebSocket(url);
+
+         ws.onmessage = function (event) {
+             msg = JSON.parse(event.data)
+             //console.log(msg)
+             switch(msg.msgtype){
+                 case "image":
+                     var Canvas = document.getElementById('display');
+                     var ctx = Canvas.getContext('2d');
+                     var img = new Image;
+                     img.onload = function(){
+                         ctx.drawImage(img,0,0);
+                     }
+                     img.src = msg.data
+             }
+         };
+        </script>
+    </body>
+</html>
