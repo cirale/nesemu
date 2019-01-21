@@ -17,8 +17,129 @@
                          ctx.drawImage(img,0,0);
                      }
                      img.src = msg.data
+                     break;
              }
          };
+
+         document.onkeydown = (event) => {
+             switch(event.KeyCode){
+                 case 37: //left
+                     ws.send({
+                         msgtype:"keydown",
+                         data:"left"
+                     })
+                     break;
+                     
+                 case 38: //up
+                     ws.send({
+                         msgtype:"keydown",
+                         data:"up"
+                     })
+                     break;
+                     
+                 case 39: //right
+                     ws.send({
+                         msgtype:"keydown",
+                         data:"right"
+                     })
+                     break;
+                     
+                 case 40: //down
+                     ws.send({
+                         msgtype:"keydown",
+                         data:"down"
+                     })
+                     break;
+
+                 case 90: //z as b
+                     ws.send({
+                         msgtype:"keydown",
+                         data:"b"
+                     })
+                     break;
+                     
+                 case 88: //x as a
+                     ws.send({
+                         msgtype:"keydown",
+                         data:"a"
+                     })
+                     break;
+
+                 case 83: //s as start
+                     ws.send({
+                         msgtype:"keydown",
+                         data:"start"
+                     })
+                     break;
+
+                 case 65: //a as select
+                     ws.send({
+                         msgtype:"keydown",
+                         data:"select"
+                     })
+                     break;
+             }
+         };
+
+         document.onkeyup = (event) => {
+             switch(event.KeyCode){
+                 case 37: //left
+                     ws.send({
+                         msgtype:"keyup",
+                         data:"left"
+                     })
+                     break;
+                     
+                 case 38: //up
+                     ws.send({
+                         msgtype:"keyup",
+                         data:"up"
+                     })
+                     break;
+                     
+                 case 39: //right
+                     ws.send({
+                         msgtype:"keyup",
+                         data:"right"
+                     })
+                     break;
+                     
+                 case 40: //down
+                     ws.send({
+                         msgtype:"keyup",
+                         data:"down"
+                     })
+                     break;
+
+                 case 90: //z as b
+                     ws.send({
+                         msgtype:"keyup",
+                         data:"b"
+                     })
+                     break;
+                     
+                 case 88: //x as a
+                     ws.send({
+                         msgtype:"keyup",
+                         data:"a"
+                     })
+                     break;
+
+                 case 83: //s as start
+                     ws.send({
+                         msgtype:"keyup",
+                         data:"start"
+                     })
+                     break;
+
+                 case 65: //a as select
+                     ws.send({
+                         msgtype:"keyup",
+                         data:"select"
+                     })
+                     break;
+             }
+         }
         </script>
     </body>
 </html>
