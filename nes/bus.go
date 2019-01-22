@@ -115,6 +115,9 @@ func (bus *PPUBus) ReadByte(addr uint16) byte {
         return bus.VRAM.Read(addr - 0x3000)
     }else if 0x3f00 <= addr && addr <= 0x3fff {
         address := (addr - 0x3f00) % 0x20
+        if address >= 0x0010 && address % 0x4 == 0 {
+            address -= 0x10
+        }
         return bus.PalletesTable.Read(address)
     }else{
         return 0
@@ -132,6 +135,9 @@ func (bus *PPUBus) WriteByte(addr uint16, data byte){
         bus.VRAM.Write(addr - 0x3000, data)
     }else if 0x3f00 <= addr && addr <= 0x3fff {
         address := (addr - 0x3f00) % 0x20
+        if address >= 0x0010 && address % 0x4 == 0 {
+            address -= 0x10
+        }
         bus.PalletesTable.Write(address, data)
     }
 }

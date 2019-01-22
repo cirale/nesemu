@@ -55,7 +55,7 @@ func ServerInit(m *melody.Melody, n *nes.NES){
     rg.GET("/",func(ctx *gin.Context){
         http.ServeFile(ctx.Writer, ctx.Request, "./view/index.html")
         if !n.Running {
-            n.Start(false)
+            go n.Start(false)
         }
     })
     
@@ -69,6 +69,10 @@ func ServerInit(m *melody.Melody, n *nes.NES){
 
     m.HandleDisconnect(func(s *melody.Session) {
         log.Printf("debug: websocket connection close. [session: %#v]\n", s)
+    })
+
+    m.HandleMessage(func(s *melody.Session, msg []byte){
+        n.KeyPad.Write(msg)
     })
 
     router.Run(":8989")

@@ -309,13 +309,13 @@ func NewTile(posX int, posY int, offset uint16, bus *PPUBus) *Tile {
     SpriteNo := bus.ReadByte(uint16(posY * 0x20 + posX) + offset)
     SpriteAddress := uint16(SpriteNo) * 16
     BlockID := int((posX % 4) / 2) + int((posY % 4) / 2) * 2
-    AttrAddress := uint16(posX / 4) + (uint16(posY / 4) * 8) + 0x03c0 
+    AttrAddress := uint16(posX / 4) + (uint16(posY / 4) * 8) + 0x03c0 + offset
     
     for i := uint16(0); i < 16; i++ {
         tile.sprite = append(tile.sprite, bus.ReadByte(SpriteAddress + i))
     }
     tile.pallete = (bus.ReadByte(AttrAddress) >> byte(BlockID * 2)) & 0x3
-
+    
     return &tile
 }
 

@@ -8,6 +8,7 @@
          ws.onmessage = function (event) {
              msg = JSON.parse(event.data)
              //console.log(msg)
+
              switch(msg.msgtype){
                  case "image":
                      var Canvas = document.getElementById('display');
@@ -22,124 +23,100 @@
          };
 
          document.onkeydown = (event) => {
-             switch(event.KeyCode){
+             data = {
+                 msgtype:"keydown",
+                 data:""
+             }
+             switch(event.keyCode){
                  case 37: //left
-                     ws.send({
-                         msgtype:"keydown",
-                         data:"left"
-                     })
+                     data.data = "left"
+                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 38: //up
-                     ws.send({
-                         msgtype:"keydown",
-                         data:"up"
-                     })
+                     data.data = "up"
+                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 39: //right
-                     ws.send({
-                         msgtype:"keydown",
-                         data:"right"
-                     })
+                     data.data = "right"
+                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 40: //down
-                     ws.send({
-                         msgtype:"keydown",
-                         data:"down"
-                     })
+                     data.data = "down"
+                     ws.send(JSON.stringify(data))
                      break;
 
                  case 90: //z as b
-                     ws.send({
-                         msgtype:"keydown",
-                         data:"b"
-                     })
+                     data.data = "b"
+                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 88: //x as a
-                     ws.send({
-                         msgtype:"keydown",
-                         data:"a"
-                     })
+                     data.data = "a"
+                     ws.send(JSON.stringify(data))
                      break;
 
                  case 83: //s as start
-                     ws.send({
-                         msgtype:"keydown",
-                         data:"start"
-                     })
+                     data.data = "start"
+                     ws.send(JSON.stringify(data))
                      break;
 
                  case 65: //a as select
-                     ws.send({
-                         msgtype:"keydown",
-                         data:"select"
-                     })
+                     data.data = "select"
+                     ws.send(JSON.stringify(data))
                      break;
              }
          };
 
          document.onkeyup = (event) => {
-             switch(event.KeyCode){
+             data = {
+                 msgtype:"keyup",
+                 data:""
+             }
+             switch(event.keyCode){
                  case 37: //left
-                     ws.send({
-                         msgtype:"keyup",
-                         data:"left"
-                     })
+                     data.data = "left"
+                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 38: //up
-                     ws.send({
-                         msgtype:"keyup",
-                         data:"up"
-                     })
+                     data.data = "up"
+                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 39: //right
-                     ws.send({
-                         msgtype:"keyup",
-                         data:"right"
-                     })
+                     data.data = "right"
+                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 40: //down
-                     ws.send({
-                         msgtype:"keyup",
-                         data:"down"
-                     })
+                     data.data = "down"
+                     ws.send(JSON.stringify(data))
                      break;
 
                  case 90: //z as b
-                     ws.send({
-                         msgtype:"keyup",
-                         data:"b"
-                     })
+                     data.data = "b"
+                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 88: //x as a
-                     ws.send({
-                         msgtype:"keyup",
-                         data:"a"
-                     })
+                     data.data = "a"
+                     ws.send(JSON.stringify(data))
                      break;
 
                  case 83: //s as start
-                     ws.send({
-                         msgtype:"keyup",
-                         data:"start"
-                     })
+                     data.data = "start"
+                     ws.send(JSON.stringify(data))
                      break;
 
                  case 65: //a as select
-                     ws.send({
-                         msgtype:"keyup",
-                         data:"select"
-                     })
+                     data.data = "select"
+                     ws.send(JSON.stringify(data))
                      break;
-             }
-         }
+             }             
+         };
         </script>
     </body>
 </html>
