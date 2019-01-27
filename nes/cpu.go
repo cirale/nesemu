@@ -89,10 +89,10 @@ type CPU struct {
     Bus *CPUBus
 }
 
-func NewCPU(ram *RAM, rom *GameROM, ppu *PPU) *CPU{
+func NewCPU(ram *RAM, rom *GameROM, ppu *PPU, keypad *KeyPad) *CPU{
     var cpu CPU
     cpu.Register = NewRegister()
-    cpu.Bus = NewBus(ram, rom, ppu)
+    cpu.Bus = NewBus(ram, rom, ppu, keypad)
 
     cpu.reset()
     return &cpu

@@ -5,6 +5,7 @@ type CPUBus struct{
     PRGROM []byte
     PRGROMSize uint
     ppu *PPU
+    keypad *KeyPad
 }
 
 func (bus *CPUBus) ReadByte(addr uint16) byte{
@@ -20,9 +21,9 @@ func (bus *CPUBus) ReadByte(addr uint16) byte{
         // PPU Register
         return bus.ppu.ReadPPURegister(addr)
         
-    }else if 0x4000 <= addr && addr <= 0x401f {
+    }else if addr == 0x4016 {
         // APU I/O, PAD
-        return 0
+        return bus.keypad.Read()
         
     }else if 0x4020 <= addr && addr <= 0x5fff {
         // extended rom
@@ -65,8 +66,9 @@ func (bus *CPUBus) WriteByte(addr uint16, data byte){
         // PPU Register
         bus.ppu.WritePPURegister(addr, data)
         
-    }else if 0x4000 <= addr && addr <= 0x401f {
+    }else if addr == 0x4016 {
         // APU I/O, PAD
+        bus.keypad.Write(data)
         
     }else if 0x4020 <= addr && addr <= 0x5fff {
         // extended rom
@@ -78,12 +80,13 @@ func (bus *CPUBus) WriteByte(addr uint16, data byte){
 }
 
 
-func NewBus(ram *RAM, rom *GameROM, ppu *PPU) *CPUBus {
+func NewBus(ram *RAM, rom *GameROM, ppu *PPU, keypad *KeyPad) *CPUBus {
     var bus CPUBus
     bus.RAM = ram
     bus.PRGROM = rom.program
     bus.PRGROMSize = rom.PRGROMSize
     bus.ppu = ppu
+    bus.keypad = keypad
     return &bus
 }
 

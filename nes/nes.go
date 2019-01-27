@@ -34,9 +34,9 @@ func NewNES(rom []byte, ws *melody.Melody) *NES{
     nes.ROM = ParseROM(rom)
     nes.RAM = NewRAM(0x2000)
     nes.VRAM = NewRAM(0x2000)
-    nes.PPU = NewPPU(nes.VRAM, nes.ROM, ws)
-    nes.CPU = NewCPU(nes.RAM, nes.ROM,nes.PPU)
     nes.KeyPad = NewKeyPad()
+    nes.PPU = NewPPU(nes.VRAM, nes.ROM, ws)
+    nes.CPU = NewCPU(nes.RAM, nes.ROM,nes.PPU, nes.KeyPad)
     
     nes.Running = false
     return &nes

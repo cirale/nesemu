@@ -30,44 +30,39 @@
              switch(event.keyCode){
                  case 37: //left
                      data.data = "left"
-                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 38: //up
                      data.data = "up"
-                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 39: //right
                      data.data = "right"
-                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 40: //down
                      data.data = "down"
-                     ws.send(JSON.stringify(data))
                      break;
 
                  case 90: //z as b
                      data.data = "b"
-                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 88: //x as a
                      data.data = "a"
-                     ws.send(JSON.stringify(data))
                      break;
 
                  case 83: //s as start
                      data.data = "start"
-                     ws.send(JSON.stringify(data))
                      break;
 
                  case 65: //a as select
                      data.data = "select"
-                     ws.send(JSON.stringify(data))
                      break;
+                 default:
+                     return
              }
+             ws.send(JSON.stringify(data))
          };
 
          document.onkeyup = (event) => {
@@ -78,44 +73,39 @@
              switch(event.keyCode){
                  case 37: //left
                      data.data = "left"
-                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 38: //up
                      data.data = "up"
-                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 39: //right
                      data.data = "right"
-                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 40: //down
                      data.data = "down"
-                     ws.send(JSON.stringify(data))
                      break;
 
                  case 90: //z as b
                      data.data = "b"
-                     ws.send(JSON.stringify(data))
                      break;
                      
                  case 88: //x as a
                      data.data = "a"
-                     ws.send(JSON.stringify(data))
                      break;
 
                  case 83: //s as start
                      data.data = "start"
-                     ws.send(JSON.stringify(data))
                      break;
 
                  case 65: //a as select
                      data.data = "select"
-                     ws.send(JSON.stringify(data))
                      break;
-             }             
+                 default:
+                     return
+             }
+             ws.send(JSON.stringify(data))
          };
         </script>
     </body>

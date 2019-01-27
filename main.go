@@ -72,7 +72,7 @@ func ServerInit(m *melody.Melody, n *nes.NES){
     })
 
     m.HandleMessage(func(s *melody.Session, msg []byte){
-        n.KeyPad.Write(msg)
+        n.KeyPad.Set(msg)
     })
 
     router.Run(":8989")
